@@ -50,6 +50,52 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   }
   LOG(INFO) << "A total of " << lines_.size() << " images.";
 
+  bool is_triplet = this->layer_param_.image_data_param().is_triplet();
+  const int lines_size = lines_.size();
+  if (this->phase_ == TRAIN&&is_triplet) 
+  {
+    labels_filenames.clear();
+    std::map<int, vector<std::string> >::iterator iter;      
+    for(int item_id = 0; item_id < lines_size; ++item_id)
+    {
+    //LOG(INFO) << "item_id" << item_id << " images.";
+      int label_id = lines_[item_id].second;
+      iter = labels_filenames.find(label_id);
+      if(iter == labels_filenames.end())
+      {
+        vector<std::string> filenames(1,lines_[item_id].first);
+        labels_filenames.insert(std::pair<int,vector<std::string> >(label_id,filenames));
+      }
+      else
+      {
+        iter->second.push_back(lines_[item_id].first);
+      }
+    }
+
+    LOG(INFO) << "item_id = " << labels_filenames.size()<< " images.";
+
+    for(int item_id = 0; item_id < idx.size(); ++item_id)
+    {
+      idx[item_id].clear();    
+    }
+    idx.clear();
+    idx.resize(labels_filenames.size());
+
+    for(int item_id = 0; item_id < lines_size; ++item_id)
+    {
+      int label_id = lines_[item_id].second;
+      idx[label_id].push_back(item_id); 
+    }
+
+  
+
+    int tmp_count = 0 ;
+    for(int item_id = 0; item_id < idx.size(); ++item_id)
+    {
+      tmp_count = tmp_count + idx[item_id].size();    
+    }
+  }
+
   lines_id_ = 0;
   // Check if we would need to randomly skip a few data points
   if (this->layer_param_.image_data_param().rand_skip()) {
@@ -127,6 +173,73 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
   // datum scales
   const int lines_size = lines_.size();
+  bool is_triplet = image_data_param.is_triplet() ;
+
+  int num_anchors = image_data_param.num_anchors() ;
+  int num_pos_imgs = image_data_param.num_pos_imgs() ;
+  vector<int>tmp_idx(batch_size);
+  tmp_idx.clear();
+  vector<int>anchors_idx(num_anchors);
+  anchors_idx.clear();
+
+  if (this->phase_ == TRAIN&&is_triplet)
+  {
+    int nValidAnchors = 0;
+    while(nValidAnchors < num_anchors) 
+    {
+      int people_id = rand() % (idx.size());
+
+      if(idx[people_id].size() < num_pos_imgs)
+      {
+        continue;
+        //people_id = rand() % (idx.size());     
+        //LOG(ERROR) << people_id<<" the num_pos_imgs is too big";   
+      }
+      
+      if( anchors_idx.end() != find(anchors_idx.begin(), anchors_idx.end(), people_id))
+      {
+        continue;
+      }
+      ++nValidAnchors;
+      
+      anchors_idx.push_back(people_id);
+
+      std::random_shuffle(idx[people_id].begin(), idx[people_id].end());
+
+      for (int j = 0; j < num_pos_imgs; ++j)
+      {
+        int t_idx = idx[people_id][j] ;
+        tmp_idx.push_back(t_idx);
+      }
+    }
+
+
+    int item_num = tmp_idx.size();
+
+    while(item_num < batch_size)
+    {
+      int item_id_tmp = rand() % (lines_size);    
+      bool is_same = false;
+      for (int j = 0; j < anchors_idx.size(); ++j)
+      {
+        if(lines_[item_id_tmp].second == anchors_idx[j])
+        {
+          is_same = true;
+        }
+      } 
+
+      if (!is_same)
+      {
+        tmp_idx.push_back(item_id_tmp);
+        item_num++;
+      }
+    }
+  }
+
+
+
+
+
   for (int item_id = 0; item_id < batch_size; ++item_id) {
     // get a blob
     timer.Start();
