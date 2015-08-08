@@ -615,6 +615,10 @@ message ImageDataParameter {
   // data.
   optional bool mirror = 6 [default = false];
   optional string root_folder = 12 [default = ""];
+
+  optional uint32 num_anchors = 209 [default = 4];
+  optional uint32 num_pos_imgs = 210 [default = 4];
+  optional bool is_triplet = 208 [default = false];
 }
 
 message InfogainLossParameter {

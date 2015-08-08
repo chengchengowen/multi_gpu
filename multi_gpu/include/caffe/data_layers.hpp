@@ -246,6 +246,15 @@ class ImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   vector<std::pair<std::string, int> > lines_;
   int lines_id_;
+
+  std::map<int, vector<std::string> > labels_filenames;
+  vector<std::pair<int, std::string> > uniform_label_filenames;
+  vector<int> start_idx_per_label;
+  int lines_id_uniform;
+  int sample_count_per_label;
+  vector<std::vector<int> >idx ;
+
+
 };
 
 /**
